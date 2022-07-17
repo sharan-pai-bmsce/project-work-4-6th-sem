@@ -3,9 +3,13 @@
 
 from dash import Dash, dcc, Output, Input, dash_table  # pip install dash
 import dash_bootstrap_components as dbc
+# from dash_extensions import Output, DashProxy, Input, MultiplexerTransform
 import plotly.express as px
 import pandas as pd 
-import json                       # pip install pandas
+import json
+
+fig=px.choropleth_mapbox
+                       # pip install pandas
 city_list={
     'New York City':[
         '../nyc-precinct-wise-dataset.csv',
@@ -29,7 +33,14 @@ city_list={
     ]
 }
 file=None
-
+crime=[]
+allPoints=[]
+figure=[]
+df=None
+columns=[]
+gcity=None
+gage=None
+columns2=[]
 # Build your components
 app = Dash(__name__, external_stylesheets=[dbc.themes.LUX])
 mytitle = dcc.Markdown(children='')
@@ -39,6 +50,11 @@ dropdown = dcc.Dropdown(options=["New York City", "Washington DC", "Seattle", "B
                         clearable=False)
 age = dcc.Input(placeholder='Enter Age',
                 type='number',value=None)
+subheading1=dcc.Markdown(children="Preinct-wise crime table")
+table = dash_table.DataTable(data=None,columns=columns)
+subheading2=dcc.Markdown(children="Points Table")
+pointstable = dash_table.DataTable(data=None,columns=columns2)
+
 # Customize your own Layout
 app.layout = dbc.Container([
     dbc.Row([
@@ -52,7 +68,19 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([age], width=3)
-    ], justify='center')
+    ], justify='center'),
+    dbc.Row([
+        dbc.Col([subheading1],width=10)
+    ],justify='left'),
+    dbc.Row([
+        dbc.Col([table],width=10)
+    ],justify='center'),
+    dbc.Row([
+        dbc.Col([subheading2],width=10)
+    ],justify='left'),
+    dbc.Row([
+        dbc.Col([pointstable],width=10)
+    ],justify='center')
 ], fluid=True)
 
 def helper1(file):
@@ -116,35 +144,75 @@ def driver(city,age):
     crime_data['total'] = li1
     return crime_data,li
 
-
 @app.callback(
     Output(mygraph, 'figure'),
     Output(mytitle, 'children'),
+    Output(table,'data'),
+    Output(table,'columns'),
+    Output(pointstable,'data'),
+    Output(pointstable,'columns'),
     Input(dropdown, 'value'),
-    Input(age, 'value')
+    Input(age, 'value'),
+    Input(mygraph,'clickData')
 )
 
-def update_graph(city, age):  # function arguments come from the component property of the Input
-    if age==None:
-        age=18
-    crime_data,points=driver(city,age)
-    print(city)
-    print(type(city))
-    data=json.load(open(city_list[city][2]))
-    lat=data['latitude']
-    long=data['longitude']
-    precincts=json.load(open(city_list[city][1],'r'))
-    # https://plotly.com/python/choropleth-maps/
-   
-    fig=px.choropleth_mapbox(crime_data,locations='precinct',featureidkey="properties.precinct",geojson=precincts,color='total',color_continuous_scale='ylorrd')
-    fig.update_geos(fitbounds="locations", visible=False)
-    fig.update_layout(mapbox_style="carto-positron", 
-                  mapbox_zoom=9.5,
-                  mapbox_center={"lat": lat, "lon": long},
-                  margin={"r":0,"t":0,"l":0,"b":0},
-                  uirevision='constant')
-    # returned objects are assigned to the component property of the Output
-    return fig, '# '+city
+def update_graph(city, age,clickData):
+    global df
+    global crime
+    global figure
+    global columns
+    global gcity
+    global gage
+    global allPoints
+    global columns2
+    if gage==age and gcity==city and clickData!=None:
+        print(clickData['points'][0]['location'])
+        for index,row in crime.iterrows():
+            if row['precinct']==clickData['points'][0]['location']:
+                data=pd.DataFrame(row).transpose()
+                df=pd.DataFrame(row).transpose()
+                break
+        print(pd.DataFrame(allPoints).to_dict('records'))
+        columns2=[]
+        res2={}
+        for point in allPoints:
+            for (key,value) in point.items():
+                df[key]/=value
+                res2[key]=value
+                columns2.append({"name":key,"id":key})
+        df=df.to_dict('records')
+        columns=[{"name": i,"id":i} for i in data.columns]
+        allPoints=[res2]
+    else:
+        df=None
+        columns=[]
+      # function arguments come from the component property of the Input
+        if age==None:
+            age=18
+        crime_data,points=driver(city,age)
+        print(city)
+        print(type(city))
+        data=json.load(open(city_list[city][2]))
+        crime=crime_data
+        allPoints=points
+        lat=data['latitude']
+        long=data['longitude']
+        precincts=json.load(open(city_list[city][1],'r'))
+        # https://plotly.com/python/choropleth-maps/
+
+        fig=px.choropleth_mapbox(crime_data,locations='precinct',featureidkey="properties.precinct",geojson=precincts,color='total',color_continuous_scale='ylorrd')
+        fig.update_geos(fitbounds="locations", visible=False)
+        fig.update_layout(mapbox_style="carto-positron", 
+                        mapbox_zoom=9.5,
+                        mapbox_center={"lat": lat, "lon": long},
+                        margin={"r":0,"t":0,"l":0,"b":0},
+                        uirevision='constant')
+        figure=fig
+        gcity=city
+        gage=age
+        columns2=[]
+            # returned objects are assigned to the component property of the Output
+    return figure,'# '+city,df,columns,allPoints,columns2
 
 # Run app
 if __name__ == '__main__':
