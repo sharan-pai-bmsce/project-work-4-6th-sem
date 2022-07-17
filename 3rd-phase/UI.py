@@ -21,6 +21,11 @@ city_list={
         '../seattle-precinct-wise-dataset.csv',
         '../first-phase/Seattle/Seattle-prcinct.geojson',
         '../seattle.json'
+    ],
+    'Boston':[
+        '../boston-precinct-wise-dataset.csv',
+        '../first-phase/Boston/Boston Police Districts.geojson',
+        '../boston.json'
     ]
 }
 file=None
@@ -54,7 +59,7 @@ def helper1(file):
     if file != None:
         return file
     fileArr=[
-        './crimes/arson.csv', 
+        'C:/Users/SHASHWAT/Desktop/Git/3rd-phase/crimes/arson.csv', 
         './crimes/assault.csv',
         './crimes/fraud.csv',
         './crimes/gun-violence.csv',
